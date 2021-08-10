@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+.node circle {
+  fill: #999;
+}
+
+.node text {
+  font: 10px sans-serif;
+}
+
+.node--internal circle {
+  fill: #555;
+}
+
+.node--internal text {
+  text-shadow: 0 1px 0 #fff, 0 -1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff;
+}
+
+.link {
+  fill: none;
+  stroke: #555;
+  stroke-opacity: 0.4;
+  stroke-width: 1.5px;
+}
+
+.container {
+  height: 600px;
+  width: 600px;
+  border:2px solid #000;
+  overflow: scroll;
+ }
+.r-dend {
+
+}
+
+</style>
+<a href="#" id="downloadLink">Download the inner html</a>
+<div class="container">
+<svg class="r-dend" width="960" height="950"></svg>
+</div>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script type="text/JavaScript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.1/jquery.min.js" ></script>
+<script>
+
+
+
+console.log("HERE");
+
+var svg = d3.select("svg"),
+    width = +svg.attr("width"),
+    height = +svg.attr("height"),
+    g = svg.append("g").attr("transform", "translate(" + (width / 2 - 15) + "," + (height / 2 + 25) + ")");
+
+d3.select("svg")
+    .call(d3.zoom().on("zoom", function () {
+       svg.attr("transform", d3.event.transform)
+    }))
+  .append("g")
+
+var stratify = d3.stratify()
+    .parentId(function(d) { return d.id.substring(0, d.id.lastIndexOf(".")); });
+
+var tree = d3.cluster()
+    .size([360, 390])
+    .separation(function(a, b) { return (a.parent == b.parent ? 1 : 2) / a.depth; });
+
+d3.csv("flare.csv", function(error, data) {
+  if (error) throw error;
+
+  var root = tree(stratify(data)
+      .sort(function(a, b) { return (a.height - b.height) || a.id.localeCompare(b.id); }));
+
+  var link = g.selectAll(".link")
+    .data(root.descendants().slice(1))
+    .enter().append("path")
+      .attr("class", "link")
+      .attr("style", "fill: none")
+      .attr("style", "stroke: #555")
+      .attr("d", function(d) {
+        return "M" + project(d.x, d.y)
+            + "C" + project(d.x, (d.y + d.parent.y) / 2)
+            + " " + project(d.parent.x, (d.y + d.parent.y) / 2)
+            + " " + project(d.parent.x, d.parent.y);
+      })
+      .style("stroke-opacity", 0.4)
+      .style("stroke-width", "1.5px");
+
+  var node = g.selectAll(".node")
+    .data(root.descendants())
+    .enter().append("g")
+      .attr("class", function(d) { return "node" + (d.children ? " node--internal" : " node--leaf"); })
+      .attr("transform", function(d) { return "translate(" + project(d.x, d.y) + ")"; });
+
+  node.append("circle")
+      .attr("r", 2.5);
+
+  node.append("text")
+      .attr("dy", ".31em")
+      .attr("x", function(d) { return d.x < 180 === !d.children ? 6 : -6; })
+      .style("text-anchor", function(d) { return d.x < 180 === !d.children ? "start" : "end"; })
+      .attr("transform", function(d) { return "rotate(" + (d.x < 180 ? d.x - 90 : d.x + 90) + ")"; })
+      .text(function(d) { return d.id.substring(d.id.lastIndexOf(".") + 1); });
+
+});
+
+// .style("fill", "none")
+// .style("stroke", #555)
+// .style("stroke-opacity", 0.4)
+// .style("stroke-width", "1.5px");
+
+function project(x, y) {
+  var angle = (x - 90) / 180 * Math.PI, radius = y;
+  return [radius * Math.cos(angle), radius * Math.sin(angle)];
+}
+
+// function downloadInnerHtml(filename, elId, mimeType) {
+//     var elHtml = document.getElementsByClassName(elId)[0].innerHTML;
+//     console.log(elHtml);
+//     var link = document.createElement('a');
+//     mimeType = mimeType || 'text/plain';
+//
+//     link.setAttribute('download', filename);
+//     link.setAttribute('href', 'data:' + mimeType  +  ';charset=utf-8,' + encodeURIComponent(elHtml));
+//     document.body.append(link)
+//     link.click();
+// }
+//
+// var fileName =  'tags.html'; // You can use the .txt extension if you want
+//
+// $('#downloadLink').click(function(){
+//     downloadInnerHtml(fileName, 'r-dend','text/html');
+// });
+
+// DOM.download(() => serialize(svg), undefined, "Save as SVG")
+
+// serialize = {
+//   const xmlns = "http://www.w3.org/2000/xmlns/";
+//   const xlinkns = "http://www.w3.org/1999/xlink";
+//   const svgns = "http://www.w3.org/2000/svg";
+//   return function serialize(svg) {
+//     svg2 = svg.cloneNode(true);
+//     const fragment = window.location.href + "#";
+//     const walker = document.createTreeWalker(svg, NodeFilter.SHOW_ELEMENT);
+//     while (walker.nextNode()) {
+//       for (const attr of walker.currentNode.attributes) {
+//         if (attr.value.includes(fragment)) {
+//           attr.value = attr.value.replace(fragment, "#");
+//         }
+//       }
+//     }
+//     svg2.setAttributeNS(xmlns, "xmlns", svgns);
+//     svg2.setAttributeNS(xmlns, "xmlns:xlink", xlinkns);
+//     const serializer = new window.XMLSerializer;
+//     const string = serializer.serializeToString(svg2);
+//     return new Blob([string], {type: "image/svg+xml"});
+//   };
+// }//get svg element.
+// var svg2 = document.getElementById("svg");
+//
+// //get svg source.
+// var serializer = new XMLSerializer();
+// var source = serializer.serializeToString(svg2);
+//
+// //add name spaces.
+// if(!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)){
+//     source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+// }
+// if(!source.match(/^<svg[^>]+"http\:\/\/www\.w3\.org\/1999\/xlink"/)){
+//     source = source.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
+// }
+//
+// //add xml declaration
+// source = '<?xml version="1.0" standalone="no"?>\r\n' + source;
+//
+// //convert svg source to URI data scheme.
+// var url = "data:image/svg+xml;charset=utf-8,"+encodeURIComponent(source);
+//
+// //set url value to a element's href attribute.
+// document.getElementById("downloadLink").href = url;
+// //you can download svg file by right click menu.
+
+window.onload = function() {
+  var svgData = $("svg")[0].outerHTML;
+  if(!svgData.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)){
+    svgData = svgData.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+  }
+  if(!svgData.match(/^<svg[^>]+"http\:\/\/www\.w3\.org\/1999\/xlink"/)){
+    svgData = svgData.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
+  }
+
+  // var links = svgData.getElementsByClassName("link");
+  // console.log(links);
+  // links.setAttribute("style", "fill: none; stroke: #555; stroke-opacity: 0.4; stroke-width: 1.5px");
+  console.log(svgData);
+
+  var svgBlob = new Blob([svgData], {type:"image/svg+xml;charset=utf-8"});
+  var svgUrl = URL.createObjectURL(svgBlob);
+  var downloadLink = document.createElement("a");
+  downloadLink.href = svgUrl;
+  downloadLink.download = "newesttree.svg";
+  document.body.appendChild(downloadLink);
+  downloadLink.click();
+  document.body.removeChild(downloadLink);
+};
+
+</script>
